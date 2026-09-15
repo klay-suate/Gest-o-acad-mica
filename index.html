@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="pt" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestão Académica Pro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+/* ── LIGHT THEME (padrão) ── */
+:root,[data-theme="light"]{
+  --bg:#f4f3f0;--bg2:#ffffff;--bg3:#f0eff9;--bg4:#e8e7f5;--bg5:#dddcf0;
+  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.14);
+  --accent:#5b52e8;--accent2:#7068f0;--accentdim:rgba(91,82,232,0.10);--accentborder:rgba(91,82,232,0.3);
+  --green:#16a34a;--greendim:rgba(22,163,74,0.10);--greenborder:rgba(22,163,74,0.28);
+  --red:#dc2626;--reddim:rgba(220,38,38,0.09);--redborder:rgba(220,38,38,0.28);
+  --yellow:#b45309;--yellowdim:rgba(180,83,9,0.09);--yellowborder:rgba(180,83,9,0.28);
+  --blue:#0369a1;--bluedim:rgba(3,105,161,0.09);--blueborder:rgba(3,105,161,0.28);
+  --text:#1a1935;--text2:#5c5a7a;--text3:#9b99b8;
+  --shadow:0 2px 12px rgba(0,0,0,0.08);--shadow-lg:0 8px 32px rgba(0,0,0,0.12);
+  --nav-bg:rgba(244,243,240,0.92);
+}
+/* ── DARK THEME ── */
+[data-theme="dark"]{
+  --bg:#0f0f13;--bg2:#16161d;--bg3:#1e1e28;--bg4:#252532;--bg5:#2e2e3e;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --accent:#7068f0;--accent2:#8b83ff;--accentdim:rgba(112,104,240,0.15);--accentborder:rgba(112,104,240,0.4);
+  --green:#22c55e;--greendim:rgba(34,197,94,0.12);--greenborder:rgba(34,197,94,0.3);
+  --red:#ef4444;--reddim:rgba(239,68,68,0.12);--redborder:rgba(239,68,68,0.3);
+  --yellow:#f59e0b;--yellowdim:rgba(245,158,11,0.12);--yellowborder:rgba(245,158,11,0.3);
+  --blue:#38bdf8;--bluedim:rgba(56,189,248,0.10);--blueborder:rgba(56,189,248,0.3);
+  --text:#f0f0f8;--text2:#9999b3;--text3:#5c5c7a;
+  --shadow:0 2px 12px rgba(0,0,0,0.3);--shadow-lg:0 8px 32px rgba(0,0,0,0.5);
+  --nav-bg:rgba(15,15,19,0.88);
+}
+
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5;transition:background .25s,color .25s}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bg5);border-radius:4px}
+
+/* ── AUTH ── */
+.auth-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:1rem;position:relative;overflow:hidden}
+.auth-screen::before{content:'';position:absolute;width:600px;height:600px;background:radial-gradient(circle,var(--accentdim) 0%,transparent 70%);top:-100px;left:-100px;pointer-events:none}
+.auth-box{background:var(--bg2);border:1px solid var(--border2);border-radius:20px;padding:2.5rem;width:100%;max-width:400px;box-shadow:var(--shadow-lg);position:relative;z-index:1}
+.auth-logo{font-size:36px;text-align:center;margin-bottom:.4rem}
+.auth-title{text-align:center;font-size:22px;font-weight:700;margin-bottom:.2rem}
+.auth-sub{text-align:center;font-size:13px;color:var(--text2);margin-bottom:1.75rem}
+.auth-tabs{display:flex;background:var(--bg3);border-radius:10px;padding:4px;gap:4px;margin-bottom:1.5rem}
+.auth-tab{flex:1;background:transparent;border:none;padding:.5rem;font-size:13px;cursor:pointer;color:var(--text2);font-family:'DM Sans',sans-serif;border-radius:7px;transition:all .2s;font-weight:500}
+.auth-tab.active{background:var(--bg2);color:var(--text);box-shadow:var(--shadow)}
+.auth-erro{color:var(--red);font-size:12px;min-height:18px;margin-bottom:.5rem;background:var(--reddim);padding:6px 10px;border-radius:8px;display:none}
+.auth-erro:not(:empty){display:block}
+
+/* ── NAVBAR ── */
+.navbar{position:sticky;top:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:.7rem 1.5rem;background:var(--nav-bg);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);gap:1rem}
+.nav-brand{font-weight:700;font-size:15px;white-space:nowrap;display:flex;align-items:center;gap:8px}
+.nav-brand span{font-size:18px}
+.nav-tabs{display:flex;gap:2px;background:var(--bg3);border-radius:10px;padding:3px}
+.nav-tab{background:transparent;border:none;padding:.4rem .85rem;border-radius:7px;cursor:pointer;font-size:13px;color:var(--text2);font-family:'DM Sans',sans-serif;transition:all .15s;font-weight:500;white-space:nowrap}
+.nav-tab:hover{color:var(--text)}
+.nav-tab.active{background:var(--bg2);color:var(--text);box-shadow:var(--shadow)}
+.nav-user{display:flex;align-items:center;gap:8px}
+.nav-nome{font-size:13px;color:var(--text2);white-space:nowrap}
+.theme-btn{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:5px 9px;cursor:pointer;font-size:15px;transition:all .15s;color:var(--text2)}
+.theme-btn:hover{background:var(--bg4);color:var(--text)}
+
+/* ── LAYOUT ── */
+.container{max-width:1100px;margin:0 auto;padding:1.5rem 1rem}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1rem;box-shadow:var(--shadow)}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem;gap:.5rem;flex-wrap:wrap}
+.section-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text3)}
+.card-h{font-size:16px;font-weight:700;margin-bottom:1rem}
+
+/* ── STUDENT ── */
+.student-info{display:flex;align-items:center;gap:14px;margin-bottom:1.25rem}
+.avatar{width:52px;height:52px;border-radius:50%;background:var(--accentdim);border:2px solid var(--accentborder);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;flex-shrink:0}
+.student-name{font-size:18px;font-weight:700}
+.student-curso{font-size:13px;color:var(--text2);margin-top:3px}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stat{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px}
+.stat-label{font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:500}
+.stat-val{font-size:24px;font-weight:700}
+.stat-val.c-green{color:var(--green)}
+.stat-val.c-yellow{color:var(--yellow)}
+.stat-val.c-red{color:var(--red)}
+.stat-val.c-blue{color:var(--blue)}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s;font-weight:500;white-space:nowrap}
+.btn:hover{background:var(--bg4)}
+.btn:active{transform:scale(.97)}
+.btn.sm{padding:4px 10px;font-size:12px}
+.btn.primary{background:var(--accent);color:#fff;border-color:transparent}
+.btn.primary:hover{background:var(--accent2)}
+.btn.danger{background:var(--reddim);color:var(--red);border-color:var(--redborder)}
+.btn.danger:hover{background:rgba(220,38,38,0.16)}
+.btn.full{width:100%;justify-content:center}
+.btn.success{background:var(--greendim);color:var(--green);border-color:var(--greenborder)}
+.btn.warning{background:var(--yellowdim);color:var(--yellow);border-color:var(--yellowborder)}
+
+/* ── TABS SEMESTRE ── */
+.semestre-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem}
+.sem-tab{padding:5px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--text2);transition:all .15s;font-weight:500}
+.sem-tab.active{background:var(--accentdim);border-color:var(--accentborder);color:var(--accent)}
+
+/* ── DISC CARDS ── */
+.disciplinas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.disc-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:1rem;cursor:pointer;transition:all .2s}
+.disc-card:hover{border-color:var(--border2);transform:translateY(-1px);box-shadow:var(--shadow)}
+.disc-card.selected{border-color:var(--accentborder);background:var(--accentdim)}
+.disc-name{font-size:14px;font-weight:600;margin-bottom:3px}
+.disc-docente{font-size:12px;color:var(--text2);margin-bottom:8px}
+.risk-bar-bg{background:var(--bg5);border-radius:2px;height:3px;margin-top:8px}
+.risk-bar-fill{height:3px;border-radius:2px;transition:width .4s}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;gap:4px}
+.badge.aprovado{background:var(--greendim);color:var(--green);border:1px solid var(--greenborder)}
+.badge.reprovado{background:var(--reddim);color:var(--red);border:1px solid var(--redborder)}
+.badge.pendente{background:var(--bg4);color:var(--text2);border:1px solid var(--border)}
+.badge.exame{background:var(--yellowdim);color:var(--yellow);border:1px solid var(--yellowborder)}
+.badge.risco-alto{background:var(--reddim);color:var(--red);border:1px solid var(--redborder)}
+.badge.risco-medio{background:var(--yellowdim);color:var(--yellow);border:1px solid var(--yellowborder)}
+.badge.risco-baixo{background:var(--greendim);color:var(--green);border:1px solid var(--greenborder)}
+.comu-badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:20px;background:var(--red);color:#fff;font-size:10px;font-weight:700;margin-left:5px}
+
+/* ── ALERTS ── */
+.risk-alert{background:var(--reddim);border:1px solid var(--redborder);border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:13px;color:var(--red)}
+.suggestion-box{background:var(--accentdim);border:1px solid var(--accentborder);border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:13px;color:var(--accent)}
+.calc-box{background:var(--greendim);border:1px solid var(--greenborder);border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:13px;color:var(--green)}
+.falta-vals{font-size:12px;color:var(--yellow);background:var(--yellowdim);border:1px solid var(--yellowborder);border-radius:8px;padding:8px 12px;margin-top:6px}
+
+/* ── PASSAGEM ── */
+.passagem-banner{border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:.75rem;display:flex;align-items:center;gap:10px}
+.passagem-banner.passa{background:var(--greendim);color:var(--green);border:1px solid var(--greenborder)}
+.passagem-banner.repete{background:var(--reddim);color:var(--red);border:1px solid var(--redborder)}
+
+/* ── NOTAS ── */
+.notas-section{padding:.25rem 0}
+.notas-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:.6rem}
+.nota-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.nota-row:last-child{border-bottom:none}
+.nota-label{font-size:13px;color:var(--text2);font-weight:500}
+.nota-val{font-size:14px;font-weight:700;font-family:'DM Mono',monospace}
+.freq-bar-bg{background:var(--bg4);border-radius:4px;height:6px;margin:8px 0;overflow:hidden}
+.freq-bar{height:6px;border-radius:4px;transition:width .5s cubic-bezier(.4,0,.2,1)}
+.formula-hint{font-size:11px;color:var(--text3);margin-top:4px}
+.freq-resultado{margin-top:10px;background:var(--bg3);border-radius:10px;padding:12px}
+
+/* ── HORÁRIO ── */
+.horario-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;min-width:600px}
+.horario-wrap{overflow-x:auto}
+.horario-col{min-width:130px}
+.horario-dia{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);padding:4px 0 8px;border-bottom:1px solid var(--border);margin-bottom:6px}
+.horario-vazio{font-size:12px;color:var(--text3);padding:4px 0;text-align:center}
+.horario-aula{background:var(--bg3);border-radius:8px;padding:8px 10px;margin-bottom:6px;border:1px solid var(--border);border-left-width:3px;transition:all .15s}
+.horario-hora{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;font-weight:500}
+.horario-disc{font-size:12px;font-weight:600;margin-top:3px}
+.horario-sala{font-size:11px;color:var(--text2);margin-top:2px}
+.conflict-badge{font-size:10px;background:var(--reddim);color:var(--red);padding:2px 6px;border-radius:4px;display:inline-block;margin-top:4px}
+
+/* ── LEMBRETES ── */
+.lembrete-banner{background:var(--accentdim);border:1px solid var(--accentborder);border-radius:10px;padding:12px 16px;margin-bottom:1rem}
+.lembrete-header{font-size:13px;font-weight:700;color:var(--accent);margin-bottom:8px}
+.lembrete-list{display:flex;flex-direction:column;gap:6px}
+.lembrete-item{display:flex;align-items:center;gap:10px;font-size:13px}
+.lembrete-dias{font-family:'DM Mono',monospace;font-weight:700;font-size:12px;min-width:60px}
+.lembrete-dias.urgente{color:var(--red)}
+.lembrete-dias.proximo{color:var(--yellow)}
+.lembrete-dias.ok{color:var(--green)}
+.lembrete-info{flex:1}
+
+/* ── METAS ── */
+.meta-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px}
+.meta-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.meta-disc{font-size:13px;font-weight:600}
+.meta-objetivo{font-size:12px;color:var(--text2)}
+.meta-bar-bg{background:var(--bg5);border-radius:4px;height:8px;overflow:hidden}
+.meta-bar{height:8px;border-radius:4px;transition:width .5s}
+.meta-labels{display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:var(--text3);font-family:'DM Mono',monospace}
+
+/* ── DASHBOARD ── */
+.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem;margin-bottom:1rem}
+.chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:1.25rem;box-shadow:var(--shadow)}
+.chart-title{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:1rem}
+.chart-wrap{position:relative;height:220px}
+.no-data{display:flex;align-items:center;justify-content:center;height:150px;color:var(--text3);font-size:13px;flex-direction:column;gap:8px}
+
+/* ── MATERIAIS ── */
+.materiais-list{display:flex;flex-direction:column;gap:8px}
+.material-item{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;transition:all .15s}
+.material-item:hover{border-color:var(--border2)}
+.material-icon{font-size:22px;flex-shrink:0;width:36px;text-align:center}
+.material-info{flex:1;min-width:0}
+.material-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.material-meta{font-size:11px;color:var(--text2);margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.material-actions{display:flex;gap:6px;flex-shrink:0}
+.search-bar{width:100%;padding:9px 14px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;margin-bottom:1rem;transition:all .15s}
+.search-bar:focus{outline:none;border-color:var(--accentborder);box-shadow:0 0 0 3px var(--accentdim)}
+.search-bar::placeholder{color:var(--text3)}
+.disc-filter{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem}
+.disc-filter-btn{padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--text2);transition:all .15s;font-weight:500}
+.disc-filter-btn.active{background:var(--accentdim);border-color:var(--accentborder);color:var(--accent)}
+.upload-area{border:2px dashed var(--border2);border-radius:12px;padding:2rem;text-align:center;cursor:pointer;transition:all .2s;color:var(--text2)}
+.upload-area:hover{border-color:var(--accentborder);color:var(--accent);background:var(--accentdim)}
+.upload-icon{font-size:32px;margin-bottom:.5rem}
+.upload-text{font-size:13px;font-weight:600}
+.upload-sub{font-size:11px;color:var(--text3);margin-top:3px}
+
+/* ── APONTAMENTOS ── */
+.apontamento-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:8px;transition:all .15s}
+.apontamento-card:hover{border-color:var(--border2)}
+.apontamento-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px}
+.apontamento-titulo{font-size:14px;font-weight:600}
+.apontamento-texto{font-size:13px;color:var(--text2);line-height:1.6;white-space:pre-wrap}
+.apontamento-meta{font-size:11px;color:var(--text3);margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
+
+/* ── FORMS ── */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.form-row.full{grid-template-columns:1fr}
+label{font-size:12px;color:var(--text2);display:block;margin-bottom:5px;font-weight:500}
+input,select,textarea{width:100%;font-size:13px;padding:8px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-family:'DM Sans',sans-serif;transition:all .15s}
+input,select{height:38px}
+textarea{resize:vertical;padding:10px 12px;min-height:80px}
+input[type=file]{height:auto;padding:8px}
+input[type=range]{height:auto;padding:4px 0;accent-color:var(--accent)}
+select option{background:var(--bg3)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accentborder);box-shadow:0 0 0 3px var(--accentdim)}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:300;backdrop-filter:blur(6px);animation:fadeIn .15s ease}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:20px;padding:1.75rem;width:min(520px,95vw);max-height:90vh;overflow-y:auto;animation:slideUp .2s cubic-bezier(.4,0,.2,1);box-shadow:var(--shadow-lg)}
+.modal h2{font-size:17px;font-weight:700;margin-bottom:1.25rem}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:1.25rem}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* ── CALCULADORA ── */
+.calc-result{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:1rem}
+.calc-result-label{font-size:12px;color:var(--text2);margin-bottom:4px}
+.calc-result-val{font-size:28px;font-weight:700;font-family:'DM Mono',monospace}
+.calc-result-val.impossivel{color:var(--red);font-size:18px}
+.calc-result-val.facil{color:var(--green)}
+.calc-result-val.dificil{color:var(--yellow)}
+
+/* ── TAGS ── */
+.tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600}
+.tag.pdf{background:rgba(220,38,38,0.12);color:var(--red)}
+.tag.docx{background:var(--bluedim);color:var(--blue)}
+.tag.xlsx{background:var(--greendim);color:var(--green)}
+.tag.pptx{background:var(--yellowdim);color:var(--yellow)}
+.tag.img{background:var(--accentdim);color:var(--accent)}
+.tag.outro{background:var(--bg4);color:var(--text2)}
+
+.empty{text-align:center;padding:3rem 2rem;color:var(--text3);font-size:13px}
+.empty-icon{font-size:40px;margin-bottom:.75rem}
+.divider{height:1px;background:var(--border);margin:1rem 0}
+.disc-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.tabs-2{display:flex;background:var(--bg3);border-radius:10px;padding:3px;gap:3px;margin-bottom:1rem}
+.tab-2{flex:1;background:transparent;border:none;padding:.45rem;font-size:13px;cursor:pointer;color:var(--text2);font-family:'DM Sans',sans-serif;border-radius:7px;transition:all .15s;font-weight:500}
+.tab-2.active{background:var(--bg2);color:var(--text);box-shadow:var(--shadow)}
+
+@media(max-width:600px){
+  .disc-detail-grid{grid-template-columns:1fr}
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+  .nav-tabs{display:none}
+  .mobile-nav{display:flex!important}
+  .nav-nome{display:none}
+}
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border);padding:.5rem;gap:4px;z-index:200}
+.mobile-nav .nav-tab{flex:1;text-align:center;font-size:11px;padding:.5rem .25rem;border-radius:8px}
+</style>
+<body>
+
+<!-- BOAS-VINDAS (só no primeiro acesso) -->
+<div id="welcome-screen" class="auth-screen" style="display:none">
+  <div class="auth-box" style="max-width:480px;text-align:center">
+    <div class="auth-logo">🎓</div>
+    <div class="auth-title">Gestão Académica Pro</div>
+    <div class="auth-sub" style="margin-bottom:1.5rem">O teu percurso académico, organizado num só lugar</div>
+    <div style="text-align:left;font-size:13.5px;color:var(--text2);line-height:1.6;background:var(--bg3);border-radius:12px;padding:16px 18px;margin-bottom:1.5rem">
+      <p style="margin-bottom:10px">A <strong>Gestão Académica Pro</strong> ajuda-te a acompanhar notas, frequência e risco de reprovação disciplina a disciplina, organizar o teu horário semanal, guardar materiais e apontamentos, definir metas pessoais e não perder prazos de avaliações.</p>
+      <p>Também podes ligar-te a outros estudantes: pesquisar colegas por nome, número ou curso, e trocar mensagens diretamente na plataforma.</p>
+    </div>
+    <button class="btn primary full" onclick="continuarDeBoasVindas()">Continuar →</button>
+  </div>
+</div>
+
+<!-- AUTH -->
+<div id="auth-screen" class="auth-screen" style="display:none">
+  <div class="auth-box">
+    <div class="auth-logo">🎓</div>
+    <div class="auth-title">Gestão Académica</div>
+    <div class="auth-sub">Sistema inteligente de acompanhamento escolar</div>
+    <div class="auth-tabs">
+      <button id="tab-login" class="auth-tab active" onclick="showTab('login')">Entrar</button>
+      <button id="tab-reg" class="auth-tab" onclick="showTab('reg')">Criar conta</button>
+    </div>
+    <div id="form-login">
+      <div class="form-row full"><label>Email</label><input id="a-email" type="email" placeholder="ex: nome@email.com" onkeydown="if(event.key==='Enter')fazerLogin()"></div>
+      <div class="form-row full"><label>Senha</label><input id="a-pwd" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')fazerLogin()"></div>
+      <div id="auth-erro" class="auth-erro"></div>
+      <button class="btn primary full" onclick="fazerLogin()">Entrar →</button>
+      <div style="text-align:center;margin-top:10px"><a href="#" style="font-size:12px;color:var(--text2)" onclick="event.preventDefault();mostrarRecuperacao()">Esqueceste-te da senha?</a></div>
+    </div>
+    <div id="form-reg" style="display:none">
+      <div class="form-row full"><label>Nome completo</label><input id="r-nome" placeholder=" "></div>
+      <div class="form-row"><div><label>Número de estudante</label><input id="r-num" placeholder="ex: 12345"></div><div><label>Ano</label><input id="r-ano" type="number" min="1" max="7" placeholder="ex: 2"></div></div>
+      <div class="form-row full"><label>Curso</label><input id="r-curso" placeholder=" "></div>
+      <div class="form-row full"><label>Email</label><input id="r-email" type="email" placeholder="ex: nome@email.com"></div>
+      <div class="form-row full"><label>Senha</label><input id="r-pwd" type="password" placeholder="mín. 6 caracteres"></div>
+      <div class="form-row full"><label>Confirmar senha</label><input id="r-pwd2" type="password" placeholder="repete a senha"></div>
+      <div id="reg-erro" class="auth-erro"></div>
+      <button class="btn primary full" onclick="fazerRegisto()">Criar conta →</button>
+    </div>
+    <div id="form-recover" style="display:none">
+      <div id="recover-step1">
+        <p style="font-size:12px;color:var(--text2);margin-bottom:1rem">Indica o teu email. Enviamos um código de 6 dígitos para redefinires a senha.</p>
+        <div class="form-row full"><label>Email</label><input id="rec-email" type="email" placeholder="ex: nome@email.com" onkeydown="if(event.key==='Enter')enviarCodigoRecuperacao()"></div>
+        <button class="btn primary full" onclick="enviarCodigoRecuperacao()">Enviar código →</button>
+      </div>
+      <div id="recover-step2" style="display:none">
+        <p style="font-size:12px;color:var(--text2);margin-bottom:1rem">Introduz o código que recebeste por email e a tua nova senha.</p>
+        <div class="form-row full"><label>Código (6 dígitos)</label><input id="rec-codigo" inputmode="numeric" maxlength="6" placeholder="123456"></div>
+        <div class="form-row full"><label>Nova senha</label><input id="rec-nova" type="password" placeholder="mín. 6 caracteres" onkeydown="if(event.key==='Enter')confirmarNovaSenha()"></div>
+        <button class="btn primary full" onclick="confirmarNovaSenha()">Confirmar nova senha →</button>
+      </div>
+      <div id="recover-erro" class="auth-erro"></div>
+      <div style="text-align:center;margin-top:10px"><a href="#" style="font-size:12px;color:var(--text2)" onclick="event.preventDefault();voltarLogin()">← Voltar ao login</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="main-screen" style="display:none">
+  <nav class="navbar">
+    <div class="nav-brand"><span>🎓</span> Gestão Académica</div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="irPara('notas')">📊 Notas</button>
+      <button class="nav-tab" onclick="irPara('dashboard')">📈 Dashboard</button>
+      <button class="nav-tab" onclick="irPara('horario')">🕐 Horário</button>
+      <button class="nav-tab" onclick="irPara('materiais')">📁 Materiais</button>
+      <button class="nav-tab" onclick="irPara('metas')">🎯 Metas</button>
+      <button class="nav-tab" onclick="irPara('comunidade')">👥 Comunidade<span id="comu-badge-d"></span></button>
+    </div>
+    <div class="nav-user">
+      <span id="nav-nome" class="nav-nome"></span>
+      <button class="theme-btn" onclick="toggleTheme()" title="Alternar tema" id="theme-icon">🌙</button>
+      <button class="btn sm danger" onclick="logout()">Sair</button>
+    </div>
+  </nav>
+  <div class="mobile-nav">
+    <button class="nav-tab active" onclick="irPara('notas')">📊 Notas</button>
+    <button class="nav-tab" onclick="irPara('dashboard')">📈 Dash</button>
+    <button class="nav-tab" onclick="irPara('horario')">🕐 Horário</button>
+    <button class="nav-tab" onclick="irPara('materiais')">📁 Mat.</button>
+    <button class="nav-tab" onclick="irPara('metas')">🎯 Metas</button>
+    <button class="nav-tab" onclick="irPara('comunidade')">👥 Com.<span id="comu-badge-m"></span></button>
+  </div>
+  <div class="container" style="padding-bottom:80px"><div id="app"></div></div>
+</div>
+<div id="modal-root"></div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
