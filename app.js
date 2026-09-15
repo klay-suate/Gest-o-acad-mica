@@ -472,7 +472,7 @@ async function removerApontamento(id){
 }
 
 /* ── MATERIAIS (Supabase Storage) ── */
-function fileIcon(ext){const m={pdf:'📄',docx:'📝',doc:'📝',xlsx:'📊',xls:'📊',pptx:'📋',ppt:'📋',png:'🖼️',jpg:'🖼️',jpeg:'🖼️',gif:'🖼️',mp4:'🎥',mp3:'🎵',zip:'🗜️',txt:'📃'};return m[ext.toLowerCase()]||'📎';}
+function fileIcon(ext){const m={pdf:'',docx:'',doc:'',xlsx:'',xls:'',pptx:'',ppt:'',png:'',jpg:'',jpeg:'',gif:'',mp4:'',mp3:'',zip:'',txt:''};return m[ext.toLowerCase()]||'';}
 function fileTag(ext){const m={pdf:'pdf',docx:'docx',doc:'docx',xlsx:'xlsx',xls:'xlsx',pptx:'pptx',ppt:'pptx',png:'img',jpg:'img',jpeg:'img',gif:'img'};return m[ext.toLowerCase()]||'outro';}
 async function uploadMaterial(){
   const fileInput=document.getElementById('m-file');
@@ -660,8 +660,8 @@ async function renderComunidade(){
     <div class="card">
       <div class="section-head"><div class="card-h" style="margin-bottom:0">👥 Comunidade</div></div>
       <div class="tabs-2">
-        <button class="tab-2 ${S.comuTab==='pesquisar'?'active':''}" onclick="setComuTab('pesquisar')">🔍 Pesquisar</button>
-        <button class="tab-2 ${S.comuTab==='mensagens'?'active':''}" onclick="setComuTab('mensagens')">💬 Mensagens${totalNaoLidas>0?` <span class="comu-badge">${totalNaoLidas}</span>`:''}</button>
+        <button class="tab-2 ${S.comuTab==='pesquisar'?'active':''}" onclick="setComuTab('pesquisar')">Pesquisar</button>
+        <button class="tab-2 ${S.comuTab==='mensagens'?'active':''}" onclick="setComuTab('mensagens')">Mensagens${totalNaoLidas>0?` <span class="comu-badge">${totalNaoLidas}</span>`:''}</button>
       </div>
       ${S.comuTab==='pesquisar'?renderComuPesquisa():renderComuMensagens()}
     </div>`;
@@ -753,7 +753,7 @@ function renderNotas(){
 
   document.getElementById('app').innerHTML=`
     ${lembretes.length>0?`<div class="lembrete-banner">
-      <div class="lembrete-header">⏰ Avaliações Próximas (próximos 14 dias)</div>
+      <div class="lembrete-header"> Avaliações Próximas (próximos 14 dias)</div>
       <div class="lembrete-list">
         ${lembretes.slice(0,5).map(l=>{
           const d=diasAte(l.data);
@@ -784,7 +784,7 @@ function renderNotas(){
       <div class="section-head">
         <span class="section-title">Semestres</span>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn sm" onclick="abrirModal('lembrete')">⏰ Lembrete</button>
+          <button class="btn sm" onclick="abrirModal('lembrete')">Lembrete</button>
           <button class="btn sm" onclick="abrirModal('sem')">+ Semestre</button>
           ${S.activeSem?`<button class="btn sm danger" onclick="removerSemestre(${S.activeSem})">🗑 Apagar Semestre</button>`:''}
         </div>
@@ -842,12 +842,12 @@ function renderDetalhe(d){
       <div>
         <div style="font-size:16px;font-weight:700">${esc(d.nome)}</div>
         <div style="font-size:12px;color:var(--text2);margin-top:3px">Docente: ${esc(d.docente||'—')}</div>
-        ${meta?`<div style="font-size:12px;color:var(--accent);margin-top:2px">🎯 Meta: ${meta.objetivo} val.</div>`:''}
+        ${meta?`<div style="font-size:12px;color:var(--accent);margin-top:2px">Meta: ${meta.objetivo} val.</div>`:''}
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn sm" onclick="abrirModal('calculadora',{disc:getDisc()})">🧮 Calcular</button>
-        <button class="btn sm" onclick="abrirModal('plano',{disc:getDisc()})">📋 Plano</button>
-        <button class="btn sm" onclick="abrirModal('horarioDisc',{disc:getDisc()})">🕐 Aula</button>
+        <button class="btn sm" onclick="abrirModal('calculadora',{disc:getDisc()})">Calcular</button>
+        <button class="btn sm" onclick="abrirModal('plano',{disc:getDisc()})">Plano</button>
+        <button class="btn sm" onclick="abrirModal('horarioDisc',{disc:getDisc()})">Aula</button>
         <button class="btn sm" onclick="abrirModal('editDisc')">✏️</button>
         <button class="btn sm danger" onclick="removerDisc(${d.id})">🗑</button>
       </div>
@@ -858,7 +858,7 @@ function renderDetalhe(d){
       <strong>${nr.icon} Probabilidade de reprovação: ${nr.txt} (${risco}%)</strong>
     </div>`:''}
     ${sugestoes?.length?`<div class="suggestion-box">💡 <strong>Recuperação:</strong> ${sugestoes.join('; ')}</div>`:''}
-    ${meta&&freq!=null?`<div class="calc-box">🎯 Meta de ${meta.objetivo} val. — ${freq>=meta.objetivo?`Atingida! (${freq} val.) ✅`:`Faltam ${(meta.objetivo-freq).toFixed(1)} val.`}</div>`:''}
+    ${meta&&freq!=null?`<div class="calc-box">Meta de ${meta.objetivo} val. — ${freq>=meta.objetivo?`Atingida! (${freq} val.) ✅`:`Faltam ${(meta.objetivo-freq).toFixed(1)} val.`}</div>`:''}
 
     <div class="disc-detail-grid" style="margin-top:1rem">
       <div class="notas-section">
@@ -943,16 +943,16 @@ function renderDashboard(){
       <div class="section-title" style="margin-bottom:1rem">Dashboard de Desempenho</div>
       ${allD.length===0?`<div class="empty"><div class="empty-icon">📈</div>Sem dados ainda.</div>`:`
       <div class="charts-grid">
-        <div class="chart-card"><div class="chart-title">📊 Notas por Disciplina (semestre actual)</div>
+        <div class="chart-card"><div class="chart-title"> Notas por Disciplina (semestre actual)</div>
           ${discAtual.length===0?'<div class="no-data"><div>📭</div>Sem disciplinas</div>':'<div class="chart-wrap"><canvas id="chart-notas"></canvas></div>'}
         </div>
-        <div class="chart-card"><div class="chart-title">🥧 Estado Geral das Disciplinas</div>
+        <div class="chart-card"><div class="chart-title">Estado Geral das Disciplinas</div>
           <div class="chart-wrap"><canvas id="chart-estado"></canvas></div>
         </div>
-        <div class="chart-card"><div class="chart-title">⚠️ Risco de Reprovação</div>
+        <div class="chart-card"><div class="chart-title">Risco de Reprovação</div>
           ${discAtual.length===0?'<div class="no-data"><div>📭</div>Sem disciplinas</div>':'<div class="chart-wrap"><canvas id="chart-risco"></canvas></div>'}
         </div>
-        <div class="chart-card"><div class="chart-title">📈 Evolução por Semestre</div>
+        <div class="chart-card"><div class="chart-title">Evolução por Semestre</div>
           ${S.semestres.length<1?'<div class="no-data"><div>📭</div>Sem histórico</div>':'<div class="chart-wrap"><canvas id="chart-evolucao"></canvas></div>'}
         </div>
       </div>`}
@@ -1025,7 +1025,7 @@ function renderMateriais(){
         </div>
         <div style="display:flex;gap:6px">
           <button class="btn sm primary" onclick="abrirModal('uploadMat')">📎 Carregar</button>
-          <button class="btn sm" onclick="abrirModal('novoApontamento')">📝 Apontamento</button>
+          <button class="btn sm" onclick="abrirModal('novoApontamento')">Apontamento</button>
         </div>
       </div>
 
@@ -1033,7 +1033,7 @@ function renderMateriais(){
 
       <div class="tabs-2">
         <button class="tab-2 ${S.matTab==='ficheiros'?'active':''}" onclick="setMatTab('ficheiros')">📎 Ficheiros (${mats.length})</button>
-        <button class="tab-2 ${S.matTab==='apontamentos'?'active':''}" onclick="setMatTab('apontamentos')">📝 Apontamentos (${apts.length})</button>
+        <button class="tab-2 ${S.matTab==='apontamentos'?'active':''}" onclick="setMatTab('apontamentos')">Apontamentos (${apts.length})</button>
       </div>
 
       ${allD.length>0?`<div class="disc-filter">
@@ -1182,7 +1182,7 @@ async function abrirModal(tipo,data={}){
 
   }else if(tipo==='horarioDisc'||tipo==='horarioPick'){
     const disc=data.disc;
-    body=`<h2>🕐 Adicionar Aula</h2>
+    body=`<h2>Adicionar Aula</h2>
       ${todasDiscs.length>1&&!disc?`<div class="form-row full"><label>Disciplina</label><select id="h-disc">${todasDiscs.map(d=>`<option value="${d.id}">${esc(d.nome)}</option>`).join('')}</select></div>`
         :`<p style="font-size:14px;font-weight:600;margin-bottom:.75rem">${esc(disc?disc.nome:todasDiscs[0]?.nome||'')}</p><input type="hidden" id="h-disc" value="${disc?disc.id:todasDiscs[0]?.id||0}">`}
       <div class="form-row"><div><label>Dia</label><select id="h-dia">${DIAS.map(d=>`<option>${d}</option>`).join('')}</select></div><div><label>Sala</label><input id="h-sala" placeholder="ex: A-201"></div></div>
@@ -1191,7 +1191,7 @@ async function abrirModal(tipo,data={}){
       <div class="modal-actions"><button class="btn" onclick="fecharModal()">Cancelar</button><button class="btn primary" onclick="addHorario(document.getElementById('h-disc').value)">Adicionar</button></div>`;
 
   }else if(tipo==='uploadMat'){
-    body=`<h2>📎 Carregar Ficheiro</h2>
+    body=`<h2>Carregar Ficheiro</h2>
       <div class="form-row full"><label>Disciplina (opcional)</label><select id="m-matDisc"><option value="">— Geral —</option>${todasDiscs.map(d=>`<option value="${d.id}">${esc(d.nome)}</option>`).join('')}</select></div>
       <div class="form-row full"><label>Descrição</label><input id="m-matDesc" placeholder="ex: Resumo Capítulo 3"></div>
       <div class="form-row full"><label>Ficheiro(s) — máx. 20MB cada</label>
@@ -1203,21 +1203,21 @@ async function abrirModal(tipo,data={}){
       <div class="modal-actions"><button class="btn" onclick="fecharModal()">Cancelar</button><button class="btn primary" onclick="uploadMaterial()">Carregar</button></div>`;
 
   }else if(tipo==='novoApontamento'){
-    body=`<h2>📝 Novo Apontamento</h2>
+    body=`<h2> Novo Apontamento</h2>
       <div class="form-row full"><label>Disciplina (opcional)</label><select id="ap-disc"><option value="">— Geral —</option>${todasDiscs.map(d=>`<option value="${d.id}">${esc(d.nome)}</option>`).join('')}</select></div>
       <div class="form-row full"><label>Título</label><input id="ap-titulo" placeholder="ex: Resumo da aula de hoje"></div>
       <div class="form-row full"><label>Texto</label><textarea id="ap-texto" rows="6" placeholder="Escreve aqui os teus apontamentos…"></textarea></div>
       <div class="modal-actions"><button class="btn" onclick="fecharModal()">Cancelar</button><button class="btn primary" onclick="addApontamento()">Guardar</button></div>`;
 
   }else if(tipo==='lembrete'){
-    body=`<h2>⏰ Adicionar Lembrete</h2>
+    body=`<h2>Adicionar Lembrete</h2>
       <div class="form-row full"><label>Nome da Avaliação</label><input id="l-nome" placeholder="ex: Teste 1 de POO"></div>
       <div class="form-row"><div><label>Data</label><input id="l-data" type="date" value="${new Date().toISOString().slice(0,10)}"></div><div><label>Tipo</label><select id="l-tipo"><option>Teste</option><option>Exame</option><option>Trabalho</option><option>Entrega</option><option>Apresentação</option></select></div></div>
       <div class="form-row full"><label>Disciplina (opcional)</label><select id="l-disc"><option value="">— Geral —</option>${todasDiscs.map(d=>`<option value="${d.id}">${esc(d.nome)}</option>`).join('')}</select></div>
       <div class="modal-actions"><button class="btn" onclick="fecharModal()">Cancelar</button><button class="btn primary" onclick="addLembrete()">Adicionar</button></div>`;
 
   }else if(tipo==='novaMeta'){
-    body=`<h2>🎯 Definir Meta</h2>
+    body=`<h2>Definir Meta</h2>
       <div class="form-row full"><label>Disciplina</label><select id="met-disc"><option value="">Selecciona…</option>${todasDiscs.map(d=>`<option value="${d.id}">${esc(d.nome)}</option>`).join('')}</select></div>
       <div class="form-row full">
         <label>Objectivo de nota na frequência: <strong id="met-obj-label">14</strong> val.</label>
@@ -1228,7 +1228,7 @@ async function abrirModal(tipo,data={}){
   }else if(tipo==='calculadora'){
     const d=data.disc;
     const freq=calcFreq(d);
-    body=`<h2>🧮 Calculadora — ${esc(d.nome)}</h2>
+    body=`<h2> Calculadora — ${esc(d.nome)}</h2>
       <div style="font-size:13px;color:var(--text2);margin-bottom:1rem">
         Notas actuais: T1=${d.teste1??'—'} · T2=${d.teste2??'—'} · Trabalho=${d.trabalho??'—'}<br>
         ${freq!=null?`Frequência actual: <strong>${freq} val.</strong>`:'Frequência: ainda sem todas as notas'}
