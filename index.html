@@ -286,7 +286,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accentbo
     <div class="auth-title">Gestão Académica Pro</div>
     <div class="auth-sub" style="margin-bottom:1.5rem">O teu percurso académico, organizado num só lugar</div>
     <div style="text-align:left;font-size:13.5px;color:var(--text2);line-height:1.6;background:var(--bg3);border-radius:12px;padding:16px 18px;margin-bottom:1.5rem">
-      <p style="margin-bottom:10px">A <strong>Gestão Académica</strong> ajuda-te a acompanhar notas, frequência e risco de reprovação disciplina a disciplina, organizar o teu horário semanal, guardar materiais e apontamentos, definir metas pessoais e não perder prazos de avaliações.</p>
+      <p style="margin-bottom:10px">A <strong>Gestão Académica Pro</strong> ajuda-te a acompanhar notas, frequência e risco de reprovação disciplina a disciplina, organizar o teu horário semanal, guardar materiais e apontamentos, definir metas pessoais e não perder prazos de avaliações.</p>
       <p>Também podes ligar-te a outros estudantes: pesquisar colegas por nome, número ou curso, e trocar mensagens diretamente na plataforma.</p>
     </div>
     <button class="btn primary full" onclick="continuarDeBoasVindas()">Continuar →</button>
@@ -304,17 +304,17 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accentbo
       <button id="tab-reg" class="auth-tab" onclick="showTab('reg')">Criar conta</button>
     </div>
     <div id="form-login">
-      <div class="form-row full"><label>Email</label><input id="a-email" type="email" placeholder="" onkeydown="if(event.key==='Enter')fazerLogin()"></div>
-      <div class="form-row full"><label>Senha</label><input id="a-pwd" type="password" placeholder="" onkeydown="if(event.key==='Enter')fazerLogin()"></div>
+      <div class="form-row full"><label>Email</label><input id="a-email" type="email" placeholder="ex: nome@email.com" onkeydown="if(event.key==='Enter')fazerLogin()"></div>
+      <div class="form-row full"><label>Senha</label><input id="a-pwd" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')fazerLogin()"></div>
       <div id="auth-erro" class="auth-erro"></div>
       <button class="btn primary full" onclick="fazerLogin()">Entrar →</button>
       <div style="text-align:center;margin-top:10px"><a href="#" style="font-size:12px;color:var(--text2)" onclick="event.preventDefault();mostrarRecuperacao()">Esqueceste-te da senha?</a></div>
     </div>
     <div id="form-reg" style="display:none">
       <div class="form-row full"><label>Nome completo</label><input id="r-nome" placeholder=" "></div>
-      <div class="form-row"><div><label>Número de estudante</label><input id="r-num" placeholder=""></div><div><label>Ano</label><input id="r-ano" type="number" min="1" max="7" placeholder="ex: 2"></div></div>
+      <div class="form-row"><div><label>Número de estudante</label><input id="r-num" placeholder="ex: 12345"></div><div><label>Ano</label><input id="r-ano" type="number" min="1" max="7" placeholder="ex: 2"></div></div>
       <div class="form-row full"><label>Curso</label><input id="r-curso" placeholder=" "></div>
-      <div class="form-row full"><label>Email</label><input id="r-email" type="email" placeholder=""></div>
+      <div class="form-row full"><label>Email</label><input id="r-email" type="email" placeholder="ex: nome@email.com"></div>
       <div class="form-row full"><label>Senha</label><input id="r-pwd" type="password" placeholder="mín. 6 caracteres"></div>
       <div class="form-row full"><label>Confirmar senha</label><input id="r-pwd2" type="password" placeholder="repete a senha"></div>
       <div id="reg-erro" class="auth-erro"></div>
@@ -348,7 +348,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accentbo
       <button class="nav-tab" onclick="irPara('horario')">Horário</button>
       <button class="nav-tab" onclick="irPara('materiais')">Materiais</button>
       <button class="nav-tab" onclick="irPara('metas')">Metas</button>
-      <button class="nav-tab" onclick="irPara('comunidade')">Comunidade<span id="comu-badge-d"></span></button>
+      <button class="nav-tab" onclick="irPara('comunidade')">👥 Comunidade<span id="comu-badge-d"></span></button>
     </div>
     <div class="nav-user">
       <span id="nav-nome" class="nav-nome"></span>
@@ -362,7 +362,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accentbo
     <button class="nav-tab" onclick="irPara('horario')">Horário</button>
     <button class="nav-tab" onclick="irPara('materiais')">Mat.</button>
     <button class="nav-tab" onclick="irPara('metas')">Metas</button>
-    <button class="nav-tab" onclick="irPara('comunidade')">Com.<span id="comu-badge-m"></span></button>
+    <button class="nav-tab" onclick="irPara('comunidade')">👥 Com.<span id="comu-badge-m"></span></button>
   </div>
   <div class="container" style="padding-bottom:80px"><div id="app"></div></div>
 </div>
