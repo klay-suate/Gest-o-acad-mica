@@ -133,6 +133,7 @@ async function carregarPerfilEEntrar(user){
 }
 
 async function logout(){
+  sairCanaisGrupo();
   if(_msgChannel){sb.removeChannel(_msgChannel);_msgChannel=null;}
   if(_geralChannel){sb.removeChannel(_geralChannel);_geralChannel=null;}
   await sb.auth.signOut();
@@ -140,7 +141,8 @@ async function logout(){
   Object.assign(S,{
     semestres:[],activeSem:null,activeDisc:null,vista:'notas',horarioSemana:[],
     materiais:[],matSearch:'',matDisc:null,lembretes:[],metas:[],apontamentos:[],matTab:'ficheiros',
-    conversas:[],activeConversa:null,mensagens:[],comuTab:'pesquisar',comuQuery:'',comuResultados:[],_comuInit:false
+    conversas:[],activeConversa:null,mensagens:[],comuTab:'pesquisar',comuQuery:'',comuResultados:[],_comuInit:false,
+    meusGrupos:[],activeGrupo:null,grupoMensagens:[],grupoOnline:[]
   });
   document.getElementById('main-screen').style.display='none';
   document.getElementById('auth-screen').style.display='';
@@ -162,7 +164,8 @@ async function entrarNaApp(){
 const S={
   semestres:[],activeSem:null,activeDisc:null,vista:'notas',horarioSemana:[],modal:null,mdata:{},
   materiais:[],matSearch:'',matDisc:null,lembretes:[],metas:[],apontamentos:[],matTab:'ficheiros',
-  conversas:[],activeConversa:null,mensagens:[],comuTab:'pesquisar',comuQuery:'',comuResultados:[],_comuInit:false
+  conversas:[],activeConversa:null,mensagens:[],comuTab:'pesquisar',comuQuery:'',comuResultados:[],_comuInit:false,
+  meusGrupos:[],activeGrupo:null,grupoMensagens:[],grupoOnline:[]
 };
 
 async function carregarDados(){
@@ -472,7 +475,7 @@ async function removerApontamento(id){
 }
 
 /* ── MATERIAIS (Supabase Storage) ── */
-function fileIcon(ext){const m={pdf:'',docx:'',doc:'',xlsx:'',xls:'',pptx:'',ppt:'',png:'',jpg:'',jpeg:'',gif:'',mp4:'',mp3:'',zip:'',txt:''};return m[ext.toLowerCase()]||'';}
+function fileIcon(ext){const m={pdf:'📄',docx:'📝',doc:'📝',xlsx:'📊',xls:'📊',pptx:'📋',ppt:'📋',png:'🖼️',jpg:'🖼️',jpeg:'🖼️',gif:'🖼️',mp4:'🎥',mp3:'🎵',zip:'🗜️',txt:'📃'};return m[ext.toLowerCase()]||'📎';}
 function fileTag(ext){const m={pdf:'pdf',docx:'docx',doc:'docx',xlsx:'xlsx',xls:'xlsx',pptx:'pptx',ppt:'pptx',png:'img',jpg:'img',jpeg:'img',gif:'img'};return m[ext.toLowerCase()]||'outro';}
 async function uploadMaterial(){
   const fileInput=document.getElementById('m-file');
@@ -522,7 +525,10 @@ let _msgChannel=null;
 let _geralChannel=null;
 let _searchTimer=null;
 
-function setComuTab(t){S.comuTab=t;renderComunidade();}
+function setComuTab(t){
+  if(S.comuTab==='grupos'&&t!=='grupos')sairCanaisGrupo();
+  S.comuTab=t;renderComunidade();
+}
 
 function onComuSearchInput(){
   const q=document.getElementById('comu-search').value;
@@ -653,17 +659,18 @@ function atualizarBadgeComunidade(){
 }
 
 async function renderComunidade(){
-  if(!S._comuInit){S._comuInit=true;await carregarConversas();atualizarBadgeComunidade();}
+  if(!S._comuInit){S._comuInit=true;await carregarConversas();atualizarBadgeComunidade();await carregarMeusGrupos();}
   const app=document.getElementById('app');
   const totalNaoLidas=S.conversas.reduce((a,c)=>a+(c.naoLidas||0),0);
   app.innerHTML=`
     <div class="card">
       <div class="section-head"><div class="card-h" style="margin-bottom:0">👥 Comunidade</div></div>
       <div class="tabs-2">
-        <button class="tab-2 ${S.comuTab==='pesquisar'?'active':''}" onclick="setComuTab('pesquisar')">Pesquisar</button>
-        <button class="tab-2 ${S.comuTab==='mensagens'?'active':''}" onclick="setComuTab('mensagens')">Mensagens${totalNaoLidas>0?` <span class="comu-badge">${totalNaoLidas}</span>`:''}</button>
+        <button class="tab-2 ${S.comuTab==='pesquisar'?'active':''}" onclick="setComuTab('pesquisar')">🔍 Pesquisar</button>
+        <button class="tab-2 ${S.comuTab==='mensagens'?'active':''}" onclick="setComuTab('mensagens')">💬 Mensagens${totalNaoLidas>0?` <span class="comu-badge">${totalNaoLidas}</span>`:''}</button>
+        <button class="tab-2 ${S.comuTab==='grupos'?'active':''}" onclick="setComuTab('grupos')">👨‍👩‍👧 Grupos</button>
       </div>
-      ${S.comuTab==='pesquisar'?renderComuPesquisa():renderComuMensagens()}
+      ${S.comuTab==='pesquisar'?renderComuPesquisa():S.comuTab==='mensagens'?renderComuMensagens():renderComuGrupos()}
     </div>`;
 }
 
@@ -711,6 +718,222 @@ function renderComuMensagens(){
 }
 
 /* ════════════════════════════════════
+   GRUPOS — chat em grupo com admin, senha de acesso,
+   membros, presença online e partilha de ficheiros
+════════════════════════════════════ */
+let _grupoMsgChannel=null;
+let _grupoPresenceChannel=null;
+let _ggSearchTimer=null;
+const TAMANHO_MAX_GRUPO=10*1024*1024; // 10MB
+
+function sairCanaisGrupo(){
+  if(_grupoMsgChannel){sb.removeChannel(_grupoMsgChannel);_grupoMsgChannel=null;}
+  if(_grupoPresenceChannel){sb.removeChannel(_grupoPresenceChannel);_grupoPresenceChannel=null;}
+  S.grupoOnline=[];
+}
+
+async function carregarMeusGrupos(){
+  const{data}=await sb.from('grupo_membros').select('papel,grupos(id,nome,admin_id,created_at)').eq('user_id',currentUser.id);
+  S.meusGrupos=(data||[]).filter(r=>r.grupos).map(r=>({...r.grupos,sou_admin:r.papel==='admin'}));
+}
+
+async function criarGrupo(){
+  const nome=document.getElementById('g-nome').value.trim();
+  const senha=document.getElementById('g-senha').value;
+  const el=document.getElementById('grupo-erro');if(el)el.textContent='';
+  if(!nome||!senha){if(el)el.textContent='Preenche nome e senha do grupo';return;}
+  if(senha.length<4){if(el)el.textContent='A senha deve ter pelo menos 4 caracteres';return;}
+  const{data,error}=await sb.rpc('criar_grupo',{p_nome:nome,p_senha:senha});
+  if(error){if(el)el.textContent='Erro ao criar grupo: '+error.message;return;}
+  fecharModal();
+  await carregarMeusGrupos();
+  abrirGrupo(data);
+}
+
+async function entrarGrupoPorId(){
+  const id=parseInt(document.getElementById('g-id').value);
+  const senha=document.getElementById('g-senha-entrar').value;
+  const el=document.getElementById('grupo-erro');if(el)el.textContent='';
+  if(!id||!senha){if(el)el.textContent='Preenche o ID do grupo e a senha';return;}
+  const{error}=await sb.rpc('entrar_grupo',{p_grupo_id:id,p_senha:senha});
+  if(error){
+    if(el)el.textContent=/incorreta/i.test(error.message)?'Senha incorreta':/não encontrado/i.test(error.message)?'Grupo não encontrado':'Erro: '+error.message;
+    return;
+  }
+  fecharModal();
+  await carregarMeusGrupos();
+  abrirGrupo(id);
+}
+
+async function abrirGrupo(id){
+  await carregarMeusGrupos();
+  const grupo=S.meusGrupos.find(g=>g.id===id);
+  if(!grupo)return;
+  sairCanaisGrupo();
+  S.activeGrupo=grupo;
+  S.comuTab='grupos';
+  await carregarGrupoMensagens(id);
+  subscribeGrupoMensagens(id);
+  subscribeGrupoPresenca(id);
+  renderComunidade();
+}
+
+async function sairDoGrupo(grupoId){
+  if(!confirm('Sair deste grupo?'))return;
+  const{error}=await sb.from('grupo_membros').delete().eq('grupo_id',grupoId).eq('user_id',currentUser.id);
+  if(error){alert('Erro: '+error.message);return;}
+  sairCanaisGrupo();
+  S.activeGrupo=null;
+  await carregarMeusGrupos();
+  renderComunidade();
+}
+
+async function carregarGrupoMensagens(grupoId){
+  const{data}=await sb.from('grupo_mensagens').select('*').eq('grupo_id',grupoId).order('created_at',{ascending:true});
+  const msgs=data||[];
+  const ids=[...new Set(msgs.map(m=>m.sender_id))];
+  let perfis=[];
+  if(ids.length){const r=await sb.from('profiles').select('id,nome').in('id',ids);perfis=r.data||[];}
+  msgs.forEach(m=>{m.sender_nome=perfis.find(p=>p.id===m.sender_id)?.nome||'?';});
+  S.grupoMensagens=msgs;
+  renderComunidade();
+}
+
+async function enviarMensagemGrupo(){
+  const input=document.getElementById('gmsg-texto');
+  const texto=input.value.trim();
+  if(!texto||!S.activeGrupo)return;
+  input.value='';
+  const{data,error}=await sb.from('grupo_mensagens').insert({grupo_id:S.activeGrupo.id,sender_id:currentUser.id,texto}).select().single();
+  if(error){alert('Erro ao enviar mensagem: '+error.message);return;}
+  data.sender_nome=currentUser.nome;
+  if(!S.grupoMensagens.find(m=>m.id===data.id))S.grupoMensagens.push(data);
+  renderComunidade();
+}
+
+async function enviarFicheiroGrupo(input){
+  const file=input.files[0];input.value='';
+  if(!file||!S.activeGrupo)return;
+  if(file.size>TAMANHO_MAX_GRUPO){alert('O ficheiro excede o limite de 10MB');return;}
+  const path=`${S.activeGrupo.id}/${Date.now()}_${Math.random().toString(36).slice(2,7)}_${file.name}`;
+  const{error:upErr}=await sb.storage.from('grupo-ficheiros').upload(path,file);
+  if(upErr){alert('Erro ao enviar ficheiro: '+upErr.message);return;}
+  const{data,error}=await sb.from('grupo_mensagens').insert({grupo_id:S.activeGrupo.id,sender_id:currentUser.id,texto:'',ficheiro_path:path,ficheiro_nome:file.name,ficheiro_tamanho:file.size}).select().single();
+  if(error){alert('Erro ao guardar ficheiro: '+error.message);return;}
+  data.sender_nome=currentUser.nome;
+  S.grupoMensagens.push(data);
+  renderComunidade();
+}
+
+async function downloadFicheiroGrupo(path){
+  const{data,error}=await sb.storage.from('grupo-ficheiros').createSignedUrl(path,60);
+  if(error){alert('Erro ao gerar link: '+error.message);return;}
+  window.open(data.signedUrl,'_blank');
+}
+
+function subscribeGrupoMensagens(grupoId){
+  _grupoMsgChannel=sb.channel('grupo-msgs-'+grupoId)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'grupo_mensagens',filter:`grupo_id=eq.${grupoId}`},async payload=>{
+      if(!S.activeGrupo||S.activeGrupo.id!==grupoId)return;
+      if(S.grupoMensagens.find(m=>m.id===payload.new.id))return;
+      let nome=S.grupoOnline.find(o=>o.id===payload.new.sender_id)?.nome;
+      if(!nome){const r=await sb.from('profiles').select('nome').eq('id',payload.new.sender_id).maybeSingle();nome=r.data?.nome||'?';}
+      payload.new.sender_nome=nome;
+      S.grupoMensagens.push(payload.new);
+      renderComunidade();
+    }).subscribe();
+}
+
+function subscribeGrupoPresenca(grupoId){
+  _grupoPresenceChannel=sb.channel('grupo-presenca-'+grupoId,{config:{presence:{key:currentUser.id}}});
+  _grupoPresenceChannel.on('presence',{event:'sync'},()=>{
+    const state=_grupoPresenceChannel.presenceState();
+    S.grupoOnline=Object.keys(state).map(uid=>({id:uid,nome:state[uid][0]?.nome||'?'}));
+    renderComunidade();
+  });
+  _grupoPresenceChannel.subscribe(async status=>{
+    if(status==='SUBSCRIBED')await _grupoPresenceChannel.track({nome:currentUser.nome});
+  });
+}
+
+async function adicionarMembro(grupoId,userId){
+  const{error}=await sb.from('grupo_membros').insert({grupo_id:grupoId,user_id:userId,papel:'membro'});
+  if(error){alert(/duplicate|already/i.test(error.message)?'Já é membro deste grupo':'Erro ao adicionar: '+error.message);return;}
+  abrirModal('gerirGrupo',{grupo:S.activeGrupo});
+}
+async function removerMembro(grupoId,userId){
+  if(!confirm('Remover este membro do grupo?'))return;
+  const{error}=await sb.from('grupo_membros').delete().eq('grupo_id',grupoId).eq('user_id',userId);
+  if(error){alert('Erro: '+error.message);return;}
+  abrirModal('gerirGrupo',{grupo:S.activeGrupo});
+}
+function onGerirGrupoSearch(grupoId){
+  clearTimeout(_ggSearchTimer);
+  _ggSearchTimer=setTimeout(async()=>{
+    const input=document.getElementById('gg-search');const box=document.getElementById('gg-results');
+    if(!input||!box)return;
+    const q=input.value.trim();
+    if(!q){box.innerHTML='';return;}
+    const{data}=await sb.from('profiles').select('id,nome,numero').neq('id',currentUser.id).or(`nome.ilike.%${q}%,numero.ilike.%${q}%`).limit(8);
+    box.innerHTML=(data||[]).map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:13px">
+      <span>${esc(p.nome)} <span style="color:var(--text3)">Nº${esc(p.numero)}</span></span>
+      <button class="btn sm primary" onclick="adicionarMembro(${grupoId},'${p.id}')">+ Adicionar</button>
+    </div>`).join('')||'<div style="font-size:12px;color:var(--text3)">Nenhum resultado.</div>';
+  },300);
+}
+
+function renderComuGrupos(){
+  const g=S.activeGrupo;
+  return`
+    <div class="disc-detail-grid">
+      <div>
+        <div class="section-head" style="margin-bottom:8px">
+          <div class="notas-title" style="margin-bottom:0">Meus Grupos</div>
+          <div style="display:flex;gap:6px">
+            <button class="btn sm" onclick="abrirModal('entrarGrupo')">🔑 Entrar</button>
+            <button class="btn sm primary" onclick="abrirModal('criarGrupo')">+ Criar</button>
+          </div>
+        </div>
+        ${S.meusGrupos.length===0?'<div style="font-size:12px;color:var(--text3);padding:8px 0">Ainda não participas em nenhum grupo.</div>':
+          S.meusGrupos.map(gr=>`
+            <div class="disc-card ${g&&g.id===gr.id?'selected':''}" style="margin-bottom:8px" onclick="abrirGrupo(${gr.id})">
+              <div class="disc-name">${esc(gr.nome)} ${gr.sou_admin?'<span class="badge aprovado" style="font-size:9px">ADMIN</span>':''}</div>
+              <div class="disc-docente">ID do grupo: ${gr.id}</div>
+            </div>`).join('')}
+      </div>
+      <div>
+        ${g?`
+          <div class="section-head" style="margin-bottom:6px">
+            <div class="notas-title" style="margin-bottom:0">${esc(g.nome)}</div>
+            <div style="display:flex;gap:6px">
+              ${g.sou_admin?`<button class="btn sm" onclick="abrirModal('gerirGrupo',{grupo:S.activeGrupo})">⚙ Gerir</button>`:`<button class="btn sm danger" onclick="sairDoGrupo(${g.id})">Sair</button>`}
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:8px">🟢 Online: ${S.grupoOnline.length===0?'só tu':S.grupoOnline.map(o=>esc(o.nome)).join(', ')}</div>
+          <div id="gmsg-list" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px;padding:4px 0">
+            ${S.grupoMensagens.length===0?'<div style="font-size:12px;color:var(--text3)">Sem mensagens ainda.</div>':S.grupoMensagens.map(m=>{
+              const meu=m.sender_id===currentUser.id;
+              return`<div style="align-self:${meu?'flex-end':'flex-start'};max-width:80%">
+                <div style="font-size:10px;color:var(--text3);margin-bottom:2px;text-align:${meu?'right':'left'}">${meu?'Tu':esc(m.sender_nome)}</div>
+                ${m.ficheiro_path?`
+                  <div style="background:${meu?'var(--accentdim)':'var(--bg3)'};border-radius:10px;padding:8px 12px;display:flex;align-items:center;gap:8px;font-size:12px">
+                    <span>${fileIcon((m.ficheiro_nome.split('.').pop()||''))}</span><span style="flex:1;word-break:break-word">${esc(m.ficheiro_nome)}</span><span style="color:var(--text3)">${formatSize(m.ficheiro_tamanho)}</span><button class="btn sm" onclick="downloadFicheiroGrupo('${m.ficheiro_path}')">⬇</button>
+                  </div>`:
+                  `<div style="background:${meu?'var(--accentdim)':'var(--bg3)'};border-radius:10px;padding:8px 12px;font-size:13px;word-break:break-word">${esc(m.texto)}</div>`}
+              </div>`;}).join('')}
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn sm" onclick="document.getElementById('gmsg-file').click()" title="Enviar ficheiro (máx. 10MB)">📎</button>
+            <input id="gmsg-file" type="file" style="display:none" onchange="enviarFicheiroGrupo(this)">
+            <input id="gmsg-texto" placeholder="Escreve uma mensagem…" onkeydown="if(event.key==='Enter')enviarMensagemGrupo()" style="flex:1">
+            <button class="btn primary" onclick="enviarMensagemGrupo()">Enviar</button>
+          </div>
+        `:'<div class="empty"><div class="empty-icon">👨‍👩‍👧</div>Cria ou entra num grupo para começares a conversar.</div>'}
+      </div>
+    </div>`;
+}
+
+/* ════════════════════════════════════
    NAVEGAÇÃO
 ════════════════════════════════════ */
 function irPara(v){
@@ -753,7 +976,7 @@ function renderNotas(){
 
   document.getElementById('app').innerHTML=`
     ${lembretes.length>0?`<div class="lembrete-banner">
-      <div class="lembrete-header"> Avaliações Próximas (próximos 14 dias)</div>
+      <div class="lembrete-header">⏰ Avaliações Próximas (próximos 14 dias)</div>
       <div class="lembrete-list">
         ${lembretes.slice(0,5).map(l=>{
           const d=diasAte(l.data);
@@ -784,7 +1007,7 @@ function renderNotas(){
       <div class="section-head">
         <span class="section-title">Semestres</span>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn sm" onclick="abrirModal('lembrete')">Lembrete</button>
+          <button class="btn sm" onclick="abrirModal('lembrete')">⏰ Lembrete</button>
           <button class="btn sm" onclick="abrirModal('sem')">+ Semestre</button>
           ${S.activeSem?`<button class="btn sm danger" onclick="removerSemestre(${S.activeSem})">🗑 Apagar Semestre</button>`:''}
         </div>
@@ -842,12 +1065,12 @@ function renderDetalhe(d){
       <div>
         <div style="font-size:16px;font-weight:700">${esc(d.nome)}</div>
         <div style="font-size:12px;color:var(--text2);margin-top:3px">Docente: ${esc(d.docente||'—')}</div>
-        ${meta?`<div style="font-size:12px;color:var(--accent);margin-top:2px">Meta: ${meta.objetivo} val.</div>`:''}
+        ${meta?`<div style="font-size:12px;color:var(--accent);margin-top:2px">🎯 Meta: ${meta.objetivo} val.</div>`:''}
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn sm" onclick="abrirModal('calculadora',{disc:getDisc()})">Calcular</button>
-        <button class="btn sm" onclick="abrirModal('plano',{disc:getDisc()})">Plano</button>
-        <button class="btn sm" onclick="abrirModal('horarioDisc',{disc:getDisc()})">Aula</button>
+        <button class="btn sm" onclick="abrirModal('calculadora',{disc:getDisc()})">🧮 Calcular</button>
+        <button class="btn sm" onclick="abrirModal('plano',{disc:getDisc()})">📋 Plano</button>
+        <button class="btn sm" onclick="abrirModal('horarioDisc',{disc:getDisc()})">🕐 Aula</button>
         <button class="btn sm" onclick="abrirModal('editDisc')">✏️</button>
         <button class="btn sm danger" onclick="removerDisc(${d.id})">🗑</button>
       </div>
@@ -858,7 +1081,7 @@ function renderDetalhe(d){
       <strong>${nr.icon} Probabilidade de reprovação: ${nr.txt} (${risco}%)</strong>
     </div>`:''}
     ${sugestoes?.length?`<div class="suggestion-box">💡 <strong>Recuperação:</strong> ${sugestoes.join('; ')}</div>`:''}
-    ${meta&&freq!=null?`<div class="calc-box">Meta de ${meta.objetivo} val. — ${freq>=meta.objetivo?`Atingida! (${freq} val.) ✅`:`Faltam ${(meta.objetivo-freq).toFixed(1)} val.`}</div>`:''}
+    ${meta&&freq!=null?`<div class="calc-box">🎯 Meta de ${meta.objetivo} val. — ${freq>=meta.objetivo?`Atingida! (${freq} val.) ✅`:`Faltam ${(meta.objetivo-freq).toFixed(1)} val.`}</div>`:''}
 
     <div class="disc-detail-grid" style="margin-top:1rem">
       <div class="notas-section">
@@ -943,16 +1166,16 @@ function renderDashboard(){
       <div class="section-title" style="margin-bottom:1rem">Dashboard de Desempenho</div>
       ${allD.length===0?`<div class="empty"><div class="empty-icon">📈</div>Sem dados ainda.</div>`:`
       <div class="charts-grid">
-        <div class="chart-card"><div class="chart-title"> Notas por Disciplina (semestre actual)</div>
+        <div class="chart-card"><div class="chart-title">📊 Notas por Disciplina (semestre actual)</div>
           ${discAtual.length===0?'<div class="no-data"><div>📭</div>Sem disciplinas</div>':'<div class="chart-wrap"><canvas id="chart-notas"></canvas></div>'}
         </div>
-        <div class="chart-card"><div class="chart-title">Estado Geral das Disciplinas</div>
+        <div class="chart-card"><div class="chart-title">🥧 Estado Geral das Disciplinas</div>
           <div class="chart-wrap"><canvas id="chart-estado"></canvas></div>
         </div>
-        <div class="chart-card"><div class="chart-title">Risco de Reprovação</div>
+        <div class="chart-card"><div class="chart-title">⚠️ Risco de Reprovação</div>
           ${discAtual.length===0?'<div class="no-data"><div>📭</div>Sem disciplinas</div>':'<div class="chart-wrap"><canvas id="chart-risco"></canvas></div>'}
         </div>
-        <div class="chart-card"><div class="chart-title">Evolução por Semestre</div>
+        <div class="chart-card"><div class="chart-title">📈 Evolução por Semestre</div>
           ${S.semestres.length<1?'<div class="no-data"><div>📭</div>Sem histórico</div>':'<div class="chart-wrap"><canvas id="chart-evolucao"></canvas></div>'}
         </div>
       </div>`}
@@ -1025,7 +1248,7 @@ function renderMateriais(){
         </div>
         <div style="display:flex;gap:6px">
           <button class="btn sm primary" onclick="abrirModal('uploadMat')">📎 Carregar</button>
-          <button class="btn sm" onclick="abrirModal('novoApontamento')">Apontamento</button>
+          <button class="btn sm" onclick="abrirModal('novoApontamento')">📝 Apontamento</button>
         </div>
       </div>
 
@@ -1033,7 +1256,7 @@ function renderMateriais(){
 
       <div class="tabs-2">
         <button class="tab-2 ${S.matTab==='ficheiros'?'active':''}" onclick="setMatTab('ficheiros')">📎 Ficheiros (${mats.length})</button>
-        <button class="tab-2 ${S.matTab==='apontamentos'?'active':''}" onclick="setMatTab('apontamentos')">Apontamentos (${apts.length})</button>
+        <button class="tab-2 ${S.matTab==='apontamentos'?'active':''}" onclick="setMatTab('apontamentos')">📝 Apontamentos (${apts.length})</button>
       </div>
 
       ${allD.length>0?`<div class="disc-filter">
@@ -1182,7 +1405,7 @@ async function abrirModal(tipo,data={}){
 
   }else if(tipo==='horarioDisc'||tipo==='horarioPick'){
     const disc=data.disc;
-    body=`<h2>Adicionar Aula</h2>
+    body=`<h2>🕐 Adicionar Aula</h2>
       ${todasDiscs.length>1&&!disc?`<div class="form-row full"><label>Disciplina</label><select id="h-disc">${todasDiscs.map(d=>`<option value="${d.id}">${esc(d.nome)}</option>`).join('')}</select></div>`
         :`<p style="font-size:14px;font-weight:600;margin-bottom:.75rem">${esc(disc?disc.nome:todasDiscs[0]?.nome||'')}</p><input type="hidden" id="h-disc" value="${disc?disc.id:todasDiscs[0]?.id||0}">`}
       <div class="form-row"><div><label>Dia</label><select id="h-dia">${DIAS.map(d=>`<option>${d}</option>`).join('')}</select></div><div><label>Sala</label><input id="h-sala" placeholder="ex: A-201"></div></div>
@@ -1191,7 +1414,7 @@ async function abrirModal(tipo,data={}){
       <div class="modal-actions"><button class="btn" onclick="fecharModal()">Cancelar</button><button class="btn primary" onclick="addHorario(document.getElementById('h-disc').value)">Adicionar</button></div>`;
 
   }else if(tipo==='uploadMat'){
-    body=`<h2>Carregar Ficheiro</h2>
+    body=`<h2>📎 Carregar Ficheiro</h2>
       <div class="form-row full"><label>Disciplina (opcional)</label><select id="m-matDisc"><option value="">— Geral —</option>${todasDiscs.map(d=>`<option value="${d.id}">${esc(d.nome)}</option>`).join('')}</select></div>
       <div class="form-row full"><label>Descrição</label><input id="m-matDesc" placeholder="ex: Resumo Capítulo 3"></div>
       <div class="form-row full"><label>Ficheiro(s) — máx. 20MB cada</label>
@@ -1203,21 +1426,21 @@ async function abrirModal(tipo,data={}){
       <div class="modal-actions"><button class="btn" onclick="fecharModal()">Cancelar</button><button class="btn primary" onclick="uploadMaterial()">Carregar</button></div>`;
 
   }else if(tipo==='novoApontamento'){
-    body=`<h2> Novo Apontamento</h2>
+    body=`<h2>📝 Novo Apontamento</h2>
       <div class="form-row full"><label>Disciplina (opcional)</label><select id="ap-disc"><option value="">— Geral —</option>${todasDiscs.map(d=>`<option value="${d.id}">${esc(d.nome)}</option>`).join('')}</select></div>
       <div class="form-row full"><label>Título</label><input id="ap-titulo" placeholder="ex: Resumo da aula de hoje"></div>
       <div class="form-row full"><label>Texto</label><textarea id="ap-texto" rows="6" placeholder="Escreve aqui os teus apontamentos…"></textarea></div>
       <div class="modal-actions"><button class="btn" onclick="fecharModal()">Cancelar</button><button class="btn primary" onclick="addApontamento()">Guardar</button></div>`;
 
   }else if(tipo==='lembrete'){
-    body=`<h2>Adicionar Lembrete</h2>
+    body=`<h2>⏰ Adicionar Lembrete</h2>
       <div class="form-row full"><label>Nome da Avaliação</label><input id="l-nome" placeholder="ex: Teste 1 de POO"></div>
       <div class="form-row"><div><label>Data</label><input id="l-data" type="date" value="${new Date().toISOString().slice(0,10)}"></div><div><label>Tipo</label><select id="l-tipo"><option>Teste</option><option>Exame</option><option>Trabalho</option><option>Entrega</option><option>Apresentação</option></select></div></div>
       <div class="form-row full"><label>Disciplina (opcional)</label><select id="l-disc"><option value="">— Geral —</option>${todasDiscs.map(d=>`<option value="${d.id}">${esc(d.nome)}</option>`).join('')}</select></div>
       <div class="modal-actions"><button class="btn" onclick="fecharModal()">Cancelar</button><button class="btn primary" onclick="addLembrete()">Adicionar</button></div>`;
 
   }else if(tipo==='novaMeta'){
-    body=`<h2>Definir Meta</h2>
+    body=`<h2>🎯 Definir Meta</h2>
       <div class="form-row full"><label>Disciplina</label><select id="met-disc"><option value="">Selecciona…</option>${todasDiscs.map(d=>`<option value="${d.id}">${esc(d.nome)}</option>`).join('')}</select></div>
       <div class="form-row full">
         <label>Objectivo de nota na frequência: <strong id="met-obj-label">14</strong> val.</label>
@@ -1228,7 +1451,7 @@ async function abrirModal(tipo,data={}){
   }else if(tipo==='calculadora'){
     const d=data.disc;
     const freq=calcFreq(d);
-    body=`<h2> Calculadora — ${esc(d.nome)}</h2>
+    body=`<h2>🧮 Calculadora — ${esc(d.nome)}</h2>
       <div style="font-size:13px;color:var(--text2);margin-bottom:1rem">
         Notas actuais: T1=${d.teste1??'—'} · T2=${d.teste2??'—'} · Trabalho=${d.trabalho??'—'}<br>
         ${freq!=null?`Frequência actual: <strong>${freq} val.</strong>`:'Frequência: ainda sem todas as notas'}
@@ -1251,6 +1474,39 @@ async function abrirModal(tipo,data={}){
         ${e.ano?`<div>📅 ${esc(e.ano)}º ano</div>`:''}
       </div>
       <div class="modal-actions"><button class="btn" onclick="fecharModal()">Fechar</button><button class="btn primary" onclick="abrirConversaCom(S.mdata.estudante.id,S.mdata.estudante.nome)">💬 Enviar mensagem</button></div>`;
+
+  }else if(tipo==='criarGrupo'){
+    body=`<h2>➕ Criar Grupo</h2>
+      <div class="form-row full"><label>Nome do grupo</label><input id="g-nome" placeholder="ex: Turma de POO 2026"></div>
+      <div class="form-row full"><label>Senha de acesso</label><input id="g-senha" type="password" placeholder="mín. 4 caracteres"></div>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:.5rem">Tornas-te administrador do grupo e podes adicionar/remover membros a qualquer momento.</p>
+      <div id="grupo-erro" class="auth-erro"></div>
+      <div class="modal-actions"><button class="btn" onclick="fecharModal()">Cancelar</button><button class="btn primary" onclick="criarGrupo()">Criar</button></div>`;
+
+  }else if(tipo==='entrarGrupo'){
+    body=`<h2>🔑 Entrar num Grupo</h2>
+      <div class="form-row full"><label>ID do grupo</label><input id="g-id" type="number" placeholder="ex: 5"></div>
+      <div class="form-row full"><label>Senha</label><input id="g-senha-entrar" type="password" placeholder="Senha do grupo"></div>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:.5rem">Pede o ID e a senha a quem administra o grupo.</p>
+      <div id="grupo-erro" class="auth-erro"></div>
+      <div class="modal-actions"><button class="btn" onclick="fecharModal()">Cancelar</button><button class="btn primary" onclick="entrarGrupoPorId()">Entrar</button></div>`;
+
+  }else if(tipo==='gerirGrupo'){
+    const grupo=data.grupo;
+    const{data:membros}=await sb.from('grupo_membros').select('user_id,papel,profiles(nome,numero)').eq('grupo_id',grupo.id);
+    body=`<h2>⚙ Gerir "${esc(grupo.nome)}"</h2>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:.75rem">ID do grupo para partilhares: <strong>${grupo.id}</strong></div>
+      <div class="notas-title">Membros (${(membros||[]).length})</div>
+      <div style="max-height:180px;overflow-y:auto;margin-bottom:1rem">
+        ${(membros||[]).map(m=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+          <span>${esc(m.profiles?.nome||'?')} ${m.papel==='admin'?'<span class="badge aprovado" style="font-size:9px">ADMIN</span>':''}</span>
+          ${m.papel!=='admin'?`<button class="btn sm danger" onclick="removerMembro(${grupo.id},'${m.user_id}')">Remover</button>`:''}
+        </div>`).join('')}
+      </div>
+      <div class="notas-title">Adicionar membro</div>
+      <input id="gg-search" placeholder="Pesquisar por nome ou número…" oninput="onGerirGrupoSearch(${grupo.id})">
+      <div id="gg-results" style="margin-top:8px"></div>
+      <div class="modal-actions"><button class="btn primary" onclick="fecharModal()">Fechar</button></div>`;
   }
 
   root.innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">${body}</div></div>`;
